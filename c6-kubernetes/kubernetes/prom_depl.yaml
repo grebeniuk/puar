@@ -1,10 +1,13 @@
-# kubectl apply -f prom_depl.yaml
-# kubectl port-forward prom-book-deployment- 3000:3080
+# kubectl create namespace prom
+# kubectl apply -f prom_depl.yaml -n prom
+# kubectl port-forward prom-book-deployment-... 3000:3080
 # https://devopscube.com/node-exporter-kubernetes/
 # https://stackoverflow.com/questions/67151953/forbidden-resource-in-api-group-at-the-cluster-scope
 # https://prometheus.io/docs/prometheus/latest/configuration/configuration/#kubernetes_sd_config
 # https://github.com/prometheus/prometheus/issues/5976#issuecomment-881910837
 # https://grafana.com/docs/grafana/latest/setup-grafana/installation/kubernetes/
+# http://localhost:8001/api/v1/namespaces/prom/services/prometheus:https/proxy/
+# Secret config: https://github.com/prometheus/prometheus/blob/main/documentation/examples/rbac-setup.yml
 ---
 apiVersion: v1
 kind: PersistentVolume
@@ -70,23 +73,9 @@ spec:
       labels:
         app: prom-app
     spec:
-      initContainers:
-      - name: prometheus-data-permission-setup
-        image: prom/prometheus:latest
-        command: ["/bin/chown","-R","65534:65534","/prometheus"]
-        volumeMounts:
-        - name: prom-storage-volume
-          mountPath: /prometheus
-      - name: prometheus-data-permission-setup
-        image: prom/prometheus:latest
-        command: ["/bin/chown","-R","472:472","/var/lib/grafana"]
-        volumeMounts:
-        - name: grafana-storage-volume
-          mountPath: /var/lib/grafana
       containers:
       - name: grafana
         image: grafana/grafana:9.1.6
-        spec:
         securityContext:
           runAsUser: 472
         ports:
@@ -202,12 +191,14 @@ kind: ClusterRole
 metadata:
   name: prometheus
 rules:
-- apiGroups: [""]
+- apiGroups: ["", "extensions"]
   resources:
   - nodes
   - nodes/proxy
+  - nodes/metrics
   - services
   - endpoints
+  - endpointslice
   - pods
   verbs: ["get", "list", "watch"]
 - apiGroups:
@@ -215,7 +206,7 @@ rules:
   resources:
   - ingresses
   verbs: ["get", "list", "watch"]
-- nonResourceURLs: ["/metrics"]
+- nonResourceURLs: ["/metrics", "/metrics/cadvisor"]
   verbs: ["get"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -230,3 +221,17 @@ subjects:
 - kind: ServiceAccount
   name: default
   namespace: prom
+---
+# http://localhost:8001/api/v1/namespaces/prom/services/prometheus:9090/proxy/
+kind: Service
+apiVersion: v1
+metadata:
+  name: prometheus
+spec:
+  selector:
+    app: prom-app
+  type: LoadBalancer
+  ports:
+  - protocol: TCP
+    port: 9090
+    targetPort: 9090

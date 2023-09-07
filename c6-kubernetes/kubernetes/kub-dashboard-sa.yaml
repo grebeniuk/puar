@@ -1,0 +1,33 @@
+# https://medium.com/@munza/local-kubernetes-with-kind-helm-dashboard-41152e4b3b3d
+# helm repo add kubernetes-dashboard https://kubernetes.github.io/dashboard/
+# helm install dashboard kubernetes-dashboard/kubernetes-dashboard -n kubernetes-dashboard --create-namespace
+
+#Get the Kubernetes Dashboard URL by running:
+# export POD_NAME=$(kubectl get pods -n kubernetes-dashboard -l "app.kubernetes.io/name=kubernetes-dashboard,app.kubernetes.io/instance=dashboard" -o jsonpath="{.items[0].metadata.name}")
+# echo https://127.0.0.1:8443/
+# kubectl -n kubernetes-dashboard port-forward $POD_NAME 8443:84
+
+# kubectl apply -f ./kub-dashboard-sa.yaml 
+# kubectl create token admin-user  -n kubernetes-dashboard 
+# kubectl proxy
+# http://localhost:8001/api/v1/namespaces/kubernetes-dashboard/services/https:dashboard-kubernetes-dashboard:https/proxy/#/login
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: admin-user
+  namespace: kubernetes-dashboard
+automountServiceAccountToken: true
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: admin-user
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+- kind: ServiceAccount
+  name: admin-user
+  namespace: kubernetes-dashboard

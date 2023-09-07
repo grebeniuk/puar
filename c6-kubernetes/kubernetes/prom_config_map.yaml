@@ -28,14 +28,47 @@ data:
       - job_name: prometheus
         static_configs:
         - targets:
-            - localhost:9090
+          - localhost:9090          
       - job_name: 'node-exporter'
         kubernetes_sd_configs:
-          - role: pod
+        - role: endpoints
         relabel_configs:
         - source_labels: [__meta_kubernetes_endpoints_name]
           regex: 'node-exporter'
           action: keep
+      - job_name: 'k8apiserver'
+        kubernetes_sd_configs:
+        - role: endpointslice
+        scheme: https
+        tls_config:
+          ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+          insecure_skip_verify: true
+        authorization:
+          credentials_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        relabel_configs:
+        - source_labels:
+            - __meta_kubernetes_namespace
+            - __meta_kubernetes_service_name
+            - __meta_kubernetes_endpoint_port_name
+          action: keep
+          regex: default;kubernetes;https
+      - job_name: 'kubelet'
+        kubernetes_sd_configs:
+        - role: node
+        scheme: https
+        tls_config:
+          ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+          insecure_skip_verify: true  # Unfortunately required with Minikube.
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+      - job_name: 'cadvisor'
+        kubernetes_sd_configs:
+        - role: node
+        scheme: https
+        tls_config:
+          ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+          insecure_skip_verify: true  # Unfortunately required with Minikube.
+        metrics_path: /metrics/cadvisor
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
       - job_name: example
         static_configs:
         - targets:
