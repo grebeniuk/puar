@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: go-app-exporter
+  namespace: consul
+spec:
+  selector:
+    matchLabels:
+      app: go-app-exporter
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: go-app-exporter
+    spec:
+      containers:
+      - name: go-app-exporter
+        image: agre/go-app-exporter:latest
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 8000

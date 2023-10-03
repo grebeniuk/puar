@@ -1,0 +1,6 @@
+global:
+  metrics:
+    enabled: true
+    # http://127.0.0.1:8500/v1/agent/metrics
+    enableAgentMetrics: true
+    agentMetricsRetentionTime: "1m"
