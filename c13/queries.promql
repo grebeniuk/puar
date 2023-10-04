@@ -1,0 +1,58 @@
+# without to exclude some dimentions from summary
+sum without(device, fstype, mountpoint)(node_filesystem_size_bytes)
+
+# across all jobs and instances
+avg without(instance, job)(process_open_fds)
+
+# max/sum would retern same, we use it to aggregate out device. Rate uses last 5m of data, still 1 minute intervals
+max without(device)(rate(node_network_receive_bytes_total[5m]))
+
+# http_response_size_bytes_count is a counter so we need to use "rate" before filtering out
+sum without(handler)(rate(http_response_size_bytes_count[5m]))
+
+# A summary metric will usually contain both a _sum and _count
+# to get average we devide sum by count
+sum without(handler)(rate(http_response_size_bytes_sum[5m]))
+/
+sum without(handler)(rate(http_response_size_bytes_count[5m]))
+
+#It is incorrect to average an average, and both the division and avg would be calculating averages.
+
+
+# Histograms
+histogram_quantile(
+    0.90,
+    rate(prometheus_tsdb_compaction_duration_seconds_bucket[1d]))
+
+histogram_quantile(
+  0.90,
+  sum without(instance)(rate(prometheus_tsdb_compaction_duration_bucket[1d])))
+
+# Histogram metrics also include _sum and _count metrics
+
+#Selectors
+process_resident_memory_bytes{job="node-exporter"}
+#Matchers allow to use regexp
+node_filesystem_size_bytes{job="node-exporter",mountpoint=~"/run/.*",
+    mountpoint!~"/run/user/.*"}
+
+# Note the performance implications. code="4xx" is better than regexps, so pre-processing could be the way
+
+# offset gives results before the evalutation time
+process_resident_memory_bytes{job="node-exporter"} offset 1h
+# change in memory usage in last 1 hours
+process_resident_memory_bytes{job="node-exporter"}
+-
+process_resident_memory_bytes{job="node-exporter"} offset 1h
+# or
+  rate(process_cpu_seconds_total{job="node-exporter"}[5m])
+-
+  rate(process_cpu_seconds_total{job="node-exporter"}[5m] offset 1h)
+
+# topk as a runking function
+rate(http_requests_total[1m])
+    and
+topk(5, rate(http_requests_total[1h] @ end()))
+
+# API to execute queries  
+http://localhost:9090/api/v1/query?query=process_resident_memory_bytes&time=1514764800
